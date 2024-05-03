@@ -3,7 +3,7 @@
 #define FIRMWARE_PATH "data/firmware.bin"
 #define SIGNATURE_PATH "data/signature.bin"
 
-/* 
+/*
  *    Low level functions
  */
 
@@ -32,10 +32,10 @@ int initialize_serial(char *port) {
   tty.c_lflag &= ~ISIG;                   // get rid of signal chars
   tty.c_iflag &= ~(IXON | IXOFF | IXANY); // software control off
   tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR |
-                   ICRNL);                // all weird input handling stuff
+                   ICRNL); // all weird input handling stuff
   tty.c_oflag &= ~OPOST;
   tty.c_oflag &= ~ONLCR;
-  tty.c_cc[VTIME] = 10;                   // 1 second response timeout
+  tty.c_cc[VTIME] = 10; // 1 second response timeout
   tty.c_cc[VMIN] = 0;
 
   cfsetispeed(&tty, B115200);
@@ -46,7 +46,6 @@ int initialize_serial(char *port) {
   }
 
   // check if firmware or bootloader is present
-
   unsigned char msg[] = {'v', 'e', 'r', 's', 'i', 'o', 'n', '\r'};
   write(serial_port, msg, sizeof(msg));
   usleep(10000);
@@ -75,7 +74,7 @@ int initialize_serial(char *port) {
       printf("Error writing firmware\n");
       return -1;
     }
-  } 
+  }
 
   usleep(10000);
 
@@ -98,8 +97,6 @@ int calc_checksum(unsigned char data[], int len) {
 }
 
 int load_firmware(int serial_port) {
-  // the last 0 in RP2040 means "no onboard nonvolatile storage" :(
-
   // clear anything sitting in the serial buffer
   int bytes;
   ioctl(serial_port, FIONREAD, &bytes);
@@ -126,11 +123,11 @@ int load_firmware(int serial_port) {
   fread(signature, sizeof(unsigned char), sizeof(signature), signature_file);
   fclose(signature_file);
 
-  char msg[80]; // 80 is just a comfortable number
+  char msg[80];
   sprintf(msg, "load %i %i\r", firmware_length, checksum);
   int n = write(serial_port, &msg, strlen(msg));
 
-  usleep(100000); // 0.1 second delay
+  usleep(100000);
   unsigned char header = 0x02;
   unsigned char footer[] = {0x03, '\r'};
   n = write(serial_port, &header, sizeof(header));
@@ -139,7 +136,7 @@ int load_firmware(int serial_port) {
   n = write(serial_port, &firmware, sizeof(firmware));
 
   n = write(serial_port, &footer, sizeof(footer));
-  usleep(100000); // 0.1 seconds
+  usleep(100000);
 
   // wait for the prompt
   char res[256];
@@ -165,7 +162,6 @@ int load_firmware(int serial_port) {
 
   write(serial_port, &footer, sizeof(footer));
 
-  // prompt
   memset(&res, '\0', sizeof(res));
   usleep(10000);
   n = read(serial_port, &res, sizeof(res));
@@ -177,31 +173,29 @@ int load_firmware(int serial_port) {
   return 0;
 }
 
-int send_serial(int serial_port, char* msg, int bytes) {
-  // check if user added a \r to the end, if not add it
+int send_serial(int serial_port, char *msg, int bytes) {
   unsigned char msg_buffer[bytes];
-  for(int i = 0; i < bytes; i++) {
+  for (int i = 0; i < bytes; i++) {
     msg_buffer[i] = msg[i];
   }
   int n = write(serial_port, &msg_buffer, bytes);
   usleep(1000);
-  if(n != strlen(msg)) {
+  if (n != strlen(msg)) {
     perror("Did not write all bytes to serial");
   }
 
   return 0;
 }
 
-// DOESNT WORK FOR SOME STUFF???
-void read_serial(int serial_port, char* response, int bytes, bool debug) {
+void read_serial(int serial_port, char *response, int bytes, bool debug) {
   int n = read(serial_port, response, bytes);
   response[n] = 0;
-  if(n < 0) {
+  if (n < 0) {
     perror("Error reading serial");
   }
-  if(debug) {
+  if (debug) {
     printf("Read: \n");
-    for(int i = 0; i < bytes; i++){
+    for (int i = 0; i < bytes; i++) {
       printf("%c", response[i]);
     }
     printf("\n");
@@ -214,10 +208,9 @@ void clear_serial(int serial_port) {
   read(serial_port, NULL, bytes);
 }
 
-/* 
+/*
  *    High level functions
  */
-
 
 float read_volts(int serial_port) {
   send_serial(serial_port, "vin\r", 4);
@@ -226,20 +219,19 @@ float read_volts(int serial_port) {
   return atof(res);
 }
 
-
 int set_leds(int serial_port, int mode) {
 
   /*
-   * -1: LED's lit depend on the voltage on input 
+   * -1: LED's lit depend on the voltage on input
    *  power jack (default)
    *
    *  0: LEDs off
    *  1: orange
    *  2: green
    *  3: orange and green together
-  */
+   */
 
-  if(mode < -1 || mode > 3) {
+  if (mode < -1 || mode > 3) {
     return -1;
   }
 
@@ -256,18 +248,18 @@ void clear_faults(int serial_port) {
 
 int select_port(int serial_port, char port) {
   // for if an int is passed (0, 1, 2, 3)
-  if(port < 4) {
+  if (port < 4) {
     port += 48;
   }
-  if(port > 90) {
+  if (port > 90) {
     // if lowercase is passed
     port -= 45;
-  } else if(port > 64) {
+  } else if (port > 64) {
     // if uppercase is passed
     port -= 11;
   }
   // if not in allowed range
-  if(port < 48 || port > 51) {
+  if (port < 48 || port > 51) {
     return -1;
   }
 
@@ -277,28 +269,25 @@ int select_port(int serial_port, char port) {
   return 0;
 }
 
-
 /*
  *    giga high level functions
-*/
-
+ */
 
 Motor initialize_motor(int serial_port, char port) {
   Motor motor;
-  //send_serial(serial_port, "plimit 1; pwm\r", 14);
   motor.serial_port = serial_port;
   motor.port = port;
   return motor;
 }
 
 void set_motor_speed(Motor motor, float speed) {
-  if(speed > 100 || speed < -100) {
+  if (speed > 100 || speed < -100) {
     perror("Disallowed motor speed (must be between 100 and -100)");
   }
   select_port(motor.serial_port, motor.port);
   char cmd[256];
   memset(&cmd, '\0', sizeof(cmd));
-  // scale ranges 
+  // scale ranges
   sprintf(cmd, "plimit 1; pwm; set %f\r", speed);
   send_serial(motor.serial_port, cmd, strlen(cmd));
 }
@@ -331,7 +320,7 @@ int read_ultrasonic(Sensor sensor) {
   //    time to return a reading.
   int bytes = 0;
   bytes += read(sensor.serial_port, &res, sizeof(res));
-  while(bytes < 7) {
+  while (bytes < 7) {
     usleep(1000);
     bytes += read(sensor.serial_port, &res, sizeof(res) - bytes);
   }
@@ -341,12 +330,11 @@ int read_ultrasonic(Sensor sensor) {
   //    sometimes comes back as just "nMn: +<mm len>\n" ????
   //    change offset to 7 if you're losing a sig fig of millimeters
   //
-  // IF BROKEN REMOVE THE + bytes AND SET OFFSET TO 6
   int offset = 6;
   int reslen = strlen(res);
   int distancelen = reslen - (offset + 1);
   char distance_string[distancelen];
-  for(int i = offset; i < offset + distancelen; i++) {
+  for (int i = offset; i < offset + distancelen; i++) {
     distance_string[i - offset] = res[i];
   }
   return atoi(distance_string);
@@ -361,7 +349,7 @@ int read_color(Sensor sensor) {
 
   int bytes = 0;
   bytes += read(sensor.serial_port, &res, sizeof(res));
-  while(bytes < 7) {
+  while (bytes < 7) {
     usleep(1000);
     bytes += read(sensor.serial_port, &res, sizeof(res) - bytes);
   }
@@ -372,7 +360,7 @@ int read_color(Sensor sensor) {
   int reslen = strlen(res);
   int distancelen = reslen - (offset + 1);
   char color_string[distancelen];
-  for(int i = offset; i < offset + distancelen; i++) {
+  for (int i = offset; i < offset + distancelen; i++) {
     color_string[i - offset] = res[i];
   }
 
