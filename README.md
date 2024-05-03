@@ -6,6 +6,8 @@ Examples at the bottom.
 
 To use this library in your program, use `#include "serial.h"`.
 
+**Note:** pretty much all the high level functions and the send_serial function are broken. I recommend using the direct `read`/`write` syscalls to talk through the file descriptor returned by `initialize_serial` in the way described by the BuildHAT serial protocol PDF on the Pi Foundation's website. The Python library is kind of convoluted to reverse.
+
 ### Low Level Functions
 
 `int initialize_serial(char *port)`: this function initializes and returns a file descriptor of the serial interface. `char* port` passes the file path of the serial interface. This is probably `/dev/serial0` or `/dev/ttyS0`. This function creates a file descriptor for the serial interface, automatically detects and deals with the firmware uploading process required at every boot.
